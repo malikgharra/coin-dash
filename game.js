@@ -9,7 +9,7 @@ class CoinDash extends Phaser.Scene {
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
-      c.colors.background, 1, 0x24334b, 0.45);
+      c.colors.background, 1, c.colors.grid, c.colors.gridAlpha);
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
     this.physics.add.existing(this.player);
@@ -26,6 +26,21 @@ class CoinDash extends Phaser.Scene {
       const angle = (35 + i * 105) * Math.PI / 180;
       drone.body.setVelocity(Math.cos(angle) * c.droneSpeed, Math.sin(angle) * c.droneSpeed);
     }
+    // Theme, visual only: HUD ink, pencil outlines, an offset sketch line (no physics) and the end-of-round panel.
+    this.hud.setColor(c.colors.hud).setFontStyle('bold');
+    const sketches = [this.player, this.coin, ...this.drones.getChildren()].map((shape) => {
+      shape.setStrokeStyle(2.5, c.colors.outline, 1);
+      const line = shape.type === 'Arc' ? this.add.circle(0, 0, 10) : this.add.rectangle(0, 0, shape.width, shape.height);
+      return [shape, line.setStrokeStyle(1.2, c.colors.outline, 0.55).setAngle(-3)];
+    });
+    const follow = () => sketches.forEach(([shape, line]) => line.setPosition(shape.x + 2, shape.y - 1.5));
+    const styleEndPanel = (obj) => {
+      if (!this.finished) return;
+      if (obj.type === 'Rectangle') obj.setFillStyle(c.colors.panel, 0.96).setStrokeStyle(2.5, c.colors.outline);
+      if (obj.type === 'Text') obj.setColor(c.colors.hud).setFontStyle('bold');
+    };
+    this.events.on('postupdate', follow).on('addedtoscene', styleEndPanel);
+    this.events.once('shutdown', () => this.events.off('postupdate', follow).off('addedtoscene', styleEndPanel));
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.score++;
