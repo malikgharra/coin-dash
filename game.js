@@ -9,8 +9,9 @@ class CoinDash extends Phaser.Scene {
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
-      c.colors.background, 1, 0x24334b, 0.45);
-    this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
+      c.colors.background, 1, c.gridColor, c.gridAlpha);
+    this.add.graphics().fillStyle(c.panelColor, 1).fillRoundedRect(6, 6, c.width - 12, 32, 10);
+    this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: c.hudColor });
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
@@ -67,10 +68,12 @@ class CoinDash extends Phaser.Scene {
     this.finished = true;
     this.physics.pause();
     const c = COIN_DASH;
-    this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
+    this.add.graphics().fillStyle(c.panelColor, 0.97).lineStyle(1, c.panelBorderColor, 1)
+      .fillRoundedRect(c.width / 2 - 230, c.height / 2 - 75, 460, 150, 14)
+      .strokeRoundedRect(c.width / 2 - 230, c.height / 2 - 75, 460, 150, 14);
     this.add.text(c.width / 2, c.height / 2,
       `${reason}\n${this.score} coins collected\nPress R to try again`,
-      { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
+      { font: '24px monospace', color: c.hudColor, align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
   }
 }
