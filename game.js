@@ -58,6 +58,7 @@ class CoinDash extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    this.input.on('pointerdown', () => { if (this.finished) this.scene.restart(); }); // tap/click = R after a round
     ['easy', 'normal', 'hard'].forEach((name, i) => this.input.keyboard.on(
       `keydown-${['ONE', 'TWO', 'THREE'][i]}`, () => { this.registry.set('difficulty', name); this.scene.restart(); }));
     this.input.keyboard.on('keydown-P', () => this.togglePause());
@@ -103,10 +104,21 @@ class CoinDash extends Phaser.Scene {
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
     const dy = Number(this.cursors.down.isDown || this.keys.S.isDown)
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
-    const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
+    // Keys win; with no key held, steer toward a held touch / mouse pointer.
+    const direction = (dx || dy ? new Phaser.Math.Vector2(dx, dy) : this.pointerDirection())
+      .normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
     this.drawHud();
     if (this.secondsLeft() === 0) this.finish('Time is up!');
+  }
+
+  // Offset to the pointer while it is held down on the canvas (Phaser also tracks presses elsewhere
+  // on the page), or zero when released or within a few px, so the player stops without jitter.
+  pointerDirection() {
+    const p = this.input.activePointer;
+    if (!p.isDown || p.downElement !== this.game.canvas) return new Phaser.Math.Vector2();
+    const offset = new Phaser.Math.Vector2(p.x - this.player.x, p.y - this.player.y);
+    return offset.length() < 6 ? offset.reset() : offset;
   }
 
   secondsLeft() { return Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000)); }
@@ -126,7 +138,7 @@ class CoinDash extends Phaser.Scene {
     const c = COIN_DASH;
     this.add.rectangle(c.width / 2, c.height / 2, 460, 190, 0x0a1120, 0.95);
     this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\n${newBest ? 'New best!' : `Best: ${this.best}`}\nPress R to try again`,
+      `${reason}\n${this.score} coins collected\n${newBest ? 'New best!' : `Best: ${this.best}`}\nPress R or tap to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
   }
