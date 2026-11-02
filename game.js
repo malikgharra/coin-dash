@@ -29,7 +29,7 @@ class CoinDash extends Phaser.Scene {
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
-      c.colors.background, 1, 0x24334b, 0.45);
+      c.colors.background, 1, c.colors.grid, c.colors.gridAlpha);
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
     this.muted = CoinDashSounds.muted;
     this.muteText = this.add.text(c.width - 18, 12, 'MUTED', { font: '18px monospace', color: '#8a9bb4' })
@@ -63,6 +63,20 @@ class CoinDash extends Phaser.Scene {
       const angle = (35 + i * 105) * Math.PI / 180;
       drone.body.setVelocity(Math.cos(angle) * preset.droneSpeed, Math.sin(angle) * preset.droneSpeed);
     }
+    // Theme, visual only: HUD colour, outlines, glow shapes (no physics) and the end-of-round panel.
+    this.hud.setColor(c.colors.hud).setShadow(0, 0, c.colors.hud, 8, false, true);
+    const glows = [this.player, this.coin, ...this.drones.getChildren()].map((shape) => {
+      shape.setStrokeStyle(2, c.colors.outline, 0.9);
+      return [shape, this.add.circle(shape.x, shape.y, 21, shape.fillColor, 0.22).setBlendMode('ADD')];
+    });
+    const follow = () => glows.forEach(([shape, glow]) => glow.setPosition(shape.x, shape.y));
+    const styleEndPanel = (obj) => {
+      if (!this.finished) return;
+      if (obj.type === 'Rectangle') obj.setFillStyle(c.colors.panel, 0.94).setStrokeStyle(2, c.colors.drone);
+      if (obj.type === 'Text') obj.setColor(c.colors.hud).setShadow(0, 0, c.colors.hud, 8, false, true);
+    };
+    this.events.on('postupdate', follow).on('addedtoscene', styleEndPanel);
+    this.events.once('shutdown', () => this.events.off('postupdate', follow).off('addedtoscene', styleEndPanel));
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.score++;

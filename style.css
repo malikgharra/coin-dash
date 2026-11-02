@@ -8,3 +8,9 @@ h1 { margin: 0; font-size: 40px; }
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent; }
 canvas { display: block; }
+/* Neon arcade theme: appended overrides, so edits to the rules above merge cleanly. */
+body { background: #05040c; color: #d6d3f0; }
+header > p:first-child { color: #ff2d8a; text-shadow: 0 0 8px rgba(255, 45, 138, .7); }
+h1 { color: #00f0ff; letter-spacing: .04em; text-shadow: 0 0 6px rgba(0, 240, 255, .8), 0 0 22px rgba(0, 240, 255, .45); }
+strong { color: #ffe94a; }
+#game { border-color: #00f0ff; box-shadow: 0 0 14px rgba(0, 240, 255, .35), 0 0 40px rgba(122, 60, 255, .25); }
