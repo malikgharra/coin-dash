@@ -38,6 +38,17 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.existing(this.coin);
     this.coin.body.setCircle(9);
     this.placeCoin();
+    // Shield power-up: hidden with its body off until spawned. Its timers tick in updatePowerup().
+    const p = c.powerup;
+    this.shield = false;
+    this.invulnerable = 0; // ms left of the blink after the shield absorbs a hit
+    this.powerupTimer = p.firstDelay; // ms until the next spawn
+    this.powerupLeft = 0; // ms before the visible power-up vanishes
+    this.powerup = this.add.circle(0, 0, 12, p.color, 0.3).setStrokeStyle(3, p.color).setVisible(false);
+    this.physics.add.existing(this.powerup);
+    this.powerup.body.setCircle(12);
+    this.powerup.body.enable = false;
+    this.shieldRing = this.add.circle(0, 0, 22).setStrokeStyle(3, p.color).setVisible(false);
     this.drones = this.physics.add.group();
     // Original 270 px spacing, squeezed to fit 90..width-90 when there are more drones.
     // The row sits at y = 100, 150 px above the player's centre start.
@@ -54,7 +65,12 @@ class CoinDash extends Phaser.Scene {
       this.score++;
       this.placeCoin();
     });
-    this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
+    this.physics.add.overlap(this.player, this.powerup, () => {
+      if (this.finished) return;
+      this.hidePowerup();
+      this.shield = true;
+    });
+    this.physics.add.overlap(this.player, this.drones, () => this.hitDrone());
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
@@ -97,7 +113,47 @@ class CoinDash extends Phaser.Scene {
     this.coin.body.reset(x, y);
   }
 
-  update() {
+  spawnPowerup() {
+    const c = COIN_DASH;
+    // A free spot: away from the player and not on the coin.
+    let x, y;
+    do {
+      x = Phaser.Math.Between(25, c.width - 25);
+      y = Phaser.Math.Between(70, c.height - 25);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 80
+      || Phaser.Math.Distance.Between(x, y, this.coin.x, this.coin.y) < 40);
+    this.powerupLeft = c.powerup.lifetime;
+    this.powerup.setVisible(true);
+    this.powerup.body.enable = true;
+    this.powerup.body.reset(x, y);
+  }
+
+  hidePowerup() {
+    this.powerup.setVisible(false);
+    this.powerup.body.enable = false;
+  }
+
+  // Runs on update()'s frame delta, so nothing here advances while paused or after the round ends.
+  updatePowerup(delta) {
+    if (this.powerup.visible && (this.powerupLeft -= delta) <= 0) this.hidePowerup();
+    if ((this.powerupTimer -= delta) <= 0) {
+      this.powerupTimer = COIN_DASH.powerup.interval;
+      if (!this.powerup.visible) this.spawnPowerup();
+    }
+    this.invulnerable = Math.max(0, this.invulnerable - delta);
+    this.player.setAlpha(Math.floor(this.invulnerable / 100) % 2 ? 0.25 : 1);
+    this.shieldRing.setVisible(this.shield).setPosition(this.player.body.center.x, this.player.body.center.y);
+  }
+
+  hitDrone() {
+    if (this.finished || this.invulnerable > 0) return;
+    if (!this.shield) { this.finish('A drone caught you!'); return; }
+    // The shield absorbs this hit, then the player blinks through a short grace period.
+    this.shield = false;
+    this.invulnerable = COIN_DASH.powerup.invulnerableMs;
+  }
+
+  update(time, delta) {
     if (this.finished || this.paused) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
@@ -105,6 +161,7 @@ class CoinDash extends Phaser.Scene {
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
+    this.updatePowerup(delta);
     this.drawHud();
     if (this.secondsLeft() === 0) this.finish('Time is up!');
   }
@@ -120,6 +177,7 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    this.player.setAlpha(1); // in case time runs out mid-blink
     const newBest = this.score > this.best;
     if (newBest) { this.best = this.score; saveBest(this.best); }
     this.drawHud();

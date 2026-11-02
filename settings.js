@@ -11,5 +11,7 @@ window.COIN_DASH = {
     normal: { label: 'Normal', droneCount: 3, droneSpeed: 105 },
     hard: { label: 'Hard', droneCount: 5, droneSpeed: 150 }
   },
+  // Shield power-up. Times are ms of play time (they stand still while paused).
+  powerup: { firstDelay: 8000, interval: 12000, lifetime: 6000, invulnerableMs: 1500, color: 0x7dff5a },
   colors: { background: 0x101c31, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a }
 };
