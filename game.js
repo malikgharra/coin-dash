@@ -25,6 +25,7 @@ class CoinDash extends Phaser.Scene {
     this.score = 0;
     this.best = loadBest();
     this.finished = false;
+    this.paused = false;
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
@@ -59,6 +60,29 @@ class CoinDash extends Phaser.Scene {
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
     ['easy', 'normal', 'hard'].forEach((name, i) => this.input.keyboard.on(
       `keydown-${['ONE', 'TWO', 'THREE'][i]}`, () => { this.registry.set('difficulty', name); this.scene.restart(); }));
+    this.input.keyboard.on('keydown-P', () => this.togglePause());
+    this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+    this.pauseOverlay = this.add.container(0, 0, [
+      this.add.rectangle(c.width / 2, c.height / 2, c.width, c.height, 0x0a1120, 0.5),
+      this.add.rectangle(c.width / 2, c.height / 2, 520, 90, 0x0a1120, 0.95),
+      this.add.text(c.width / 2, c.height / 2, 'Paused — press P to resume',
+        { font: '28px monospace', color: '#ffffff' }).setOrigin(0.5)
+    ]).setVisible(false);
+  }
+
+  togglePause() {
+    if (this.finished) return;
+    this.paused = !this.paused;
+    if (this.paused) {
+      this.pausedAt = this.time.now;
+      this.player.body.setVelocity(0, 0);
+      this.physics.pause();
+    } else {
+      // Freeze the round timer: push the deadline back by however long we were paused.
+      this.deadline += this.time.now - this.pausedAt;
+      this.physics.resume();
+    }
+    this.pauseOverlay.setVisible(this.paused);
   }
 
   placeCoin() {
@@ -74,7 +98,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   update() {
-    if (this.finished) return;
+    if (this.finished || this.paused) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
     const dy = Number(this.cursors.down.isDown || this.keys.S.isDown)
