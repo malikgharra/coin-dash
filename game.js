@@ -1,4 +1,4 @@
-/* global Phaser, COIN_DASH */
+/* global Phaser, COIN_DASH, CoinDashSounds */
 // Best score: saved in localStorage, mirrored in memory so the game still works when storage is blocked.
 const BEST_KEY = 'coinDash.best';
 let sessionBest = 0;
@@ -31,6 +31,9 @@ class CoinDash extends Phaser.Scene {
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
+    this.muted = CoinDashSounds.muted;
+    this.muteText = this.add.text(c.width - 18, 12, 'MUTED', { font: '18px monospace', color: '#8a9bb4' })
+      .setOrigin(1, 0).setVisible(this.muted);
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
@@ -52,12 +55,14 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.score++;
+      CoinDashSounds.coin(this.score);
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    this.input.keyboard.on('keydown-M', () => this.muteText.setVisible(this.muted = CoinDashSounds.toggleMute()));
     ['easy', 'normal', 'hard'].forEach((name, i) => this.input.keyboard.on(
       `keydown-${['ONE', 'TWO', 'THREE'][i]}`, () => { this.registry.set('difficulty', name); this.scene.restart(); }));
     this.input.keyboard.on('keydown-P', () => this.togglePause());
@@ -120,6 +125,8 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    // The clock running out ends the round with a chime; anything else is a crash.
+    if (this.time.now >= this.deadline) CoinDashSounds.timeUp(); else CoinDashSounds.crash();
     const newBest = this.score > this.best;
     if (newBest) { this.best = this.score; saveBest(this.best); }
     this.drawHud();
